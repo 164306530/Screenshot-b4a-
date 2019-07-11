@@ -1,0 +1,298 @@
+Private Sub btnLoadImage_Click
+	Chooser.Initialize("chooser")
+	Chooser.Show("image/*", "Select an image")
+End Sub
+
+Private Sub chooser_Result (Success As Boolean, Dir As String, FileName As String)
+	If Success Then
+		LoadImage(Dir, FileName)
+		Log("Start Recognize... Recognizer ready = "&txtrecognizer.isOperational)
+		
+	Else
+		Return
+	End If
+End Sub
+
+Private Sub LoadImage(Dir As String, FileName As String)
+	imvCropedWidth = imvCroped.Width
+	
+	imvTop = MarkerDot
+	rectAction.Initialize(0, 0, pnlAction.Width, pnlAction.Height)
+	
+	bmpImage.Initialize(Dir, FileName)
+		
+	If 100%y > 100%x Then 'device in portrait
+		MaxWidth = 100%x - 2 * MarkerDot
+		MaxHeight = pnlAction.Height - 2 * MarkerDot
+		If bmpImage.Width / bmpImage.Height = 1 Then 'square image
+			imvWidth = MaxWidth
+			imvHeight = imvWidth / bmpImage.Width * bmpImage.Height
+			imvTop = imvTop + (MaxHeight -imvHeight) / 2
+			imvLeft = MarkerDot
+			rWidth = imvHeight
+			rTop = imvTop
+			rBottom = rTop + rWidth
+			rLeft = imvLeft
+			rRight = rLeft + rWidth
+		Else if bmpImage.Width / bmpImage.Height > 1 Then	' image landscape
+			imvWidth = MaxWidth
+			imvHeight = imvWidth / bmpImage.Width * bmpImage.Height
+			imvTop = imvTop + (MaxHeight -imvHeight) / 2
+			imvLeft = MarkerDot
+			rWidth = imvHeight
+			rTop = imvTop
+			rBottom = rTop + rWidth
+			rLeft = imvLeft
+			rRight = rLeft + rWidth
+		Else if bmpImage.Height / bmpImage.Width >= MaxHeight / MaxWidth Then	' image portrait higher than the screen
+			imvHeight = MaxHeight
+			imvWidth = imvHeight / bmpImage.Height * bmpImage.Width
+			imvLeft = (100%x - imvWidth) / 2
+			rWidth = imvWidth
+			rTop = MarkerDot
+			rBottom = rTop + rWidth
+			rLeft = imvLeft
+			rRight = rLeft + rWidth
+		Else 	' image portrait smaller than the screen
+			imvWidth = MaxWidth
+			imvHeight = imvWidth / bmpImage.Width * bmpImage.Height
+			imvTop = imvTop + (MaxHeight -imvHeight) / 2
+			imvLeft = MarkerDot
+			rWidth = imvWidth
+			rTop = imvTop
+			rBottom = rTop + rWidth
+			rLeft = imvLeft
+			rRight = rLeft + rWidth
+		End If
+	Else  'device in landscape
+		MaxHeight = 100%y - 2 * MarkerDot
+		MaxWidth = pnlAction.Width - 2 * MarkerDot
+		If bmpImage.Width / bmpImage.Height = 1 Then ' square
+			imvHeight = MaxHeight
+			imvWidth = imvHeight / bmpImage.Height * bmpImage.Width
+			imvLeft = (pnlAction.Width - imvWidth) / 2
+			rWidth = imvHeight
+			rTop = MarkerDot
+			rBottom = rTop + rWidth
+			rLeft = imvLeft
+			rRight = rLeft + rWidth
+		Else If bmpImage.Height / bmpImage.Width > 1 Then ' image portrait
+			imvHeight = MaxHeight
+			imvWidth = imvHeight / bmpImage.Height * bmpImage.Width
+			imvLeft = (pnlAction.Width - imvWidth) / 2
+			rWidth = imvWidth
+			rTop = imvTop
+			rBottom = rTop + rWidth
+			rLeft = imvLeft
+			rRight = rLeft + rWidth
+		Else If bmpImage.Width / bmpImage.Height > MaxWidth / MaxHeight Then ' image landscape wider than the screen
+			imvWidth = MaxWidth
+			imvHeight = imvWidth / bmpImage.Width * bmpImage.Height
+			imvTop = imvTop + (MaxHeight -imvHeight) / 2
+			imvLeft = MarkerDot
+			rWidth = imvHeight
+			rTop = imvTop
+			rBottom = rTop + rWidth
+			rLeft = imvLeft
+			rRight = rLeft + rWidth
+		Else	' image landscape smaller than the screen
+			imvHeight = MaxHeight
+			imvWidth = imvHeight / bmpImage.Height * bmpImage.Width
+			imvLeft = (pnlAction.Width - imvWidth) / 2
+			rWidth = imvHeight
+			rTop = imvTop
+			rBottom = rTop + rWidth
+			rLeft = imvLeft
+			rRight = rLeft + rWidth
+		End If
+	End If
+	
+	imvImage.SetLayout(imvLeft, imvTop, imvWidth, imvHeight)
+	imvImage.Bitmap= bmpImage
+
+	imvCroped.Bitmap = bmpImage
+	imvCroped.Gravity = Gravity.FILL
+	
+	bmpCroped.InitializeMutable(10dip, 10dip)
+
+	rectImage.Initialize(0, 0, pnlAction.Width, pnlAction.Height)
+	rectImage.Initialize(rLeft, rTop, rRight, rBottom)	' square of croped bitmap
+	rectOuter.Initialize(rectImage.Left - MarkerDot_1, rectImage.Top - MarkerDot_1, rectImage.Right + MarkerDot_1, rectImage.Bottom + MarkerDot_1)
+	cvsAction.DrawColor(Colors.Transparent)
+	cvsAction.DrawRect(rectAction, Colors.ARGB(128, 0, 0, 0), True, 1) ' redraws the
+	cvsAction.DrawRect(rectImage, Colors.Transparent, True , 1)	' draws the transparent croped square
+	
+	DrawMarkers
+	
+	PixelScale = bmpImage.Width / imvImage.Width
+	
+	GetCropedImage
+End Sub
+
+Private Sub pnlAction_Touch (Action As Int, x As Float, y As Float)
+	Private x1, y1 As Int
+	
+	Select Action
+		Case pnlAction.ACTION_DOWN
+			fTopLeft = False
+			fTopRight = False
+			fBottomLeft = False
+			fBottomRight = False
+			fCenter = False
+			If x >= rLeft - DeltaDot And x <= rLeft + DeltaDot And y >= rTop - DeltaDot And y <= rTop + DeltaDot Then
+				fTopLeft = True
+				'Activity.Title = "TopLeft"
+			Else If x >= rLeft - DeltaDot And x <= rLeft + DeltaDot And y >= rBottom - DeltaDot And y <= rBottom + DeltaDot Then
+				fBottomLeft = True
+				'Activity.Title = "BottomLeft"
+			Else If x >= rRight - DeltaDot And x <= rRight + DeltaDot And y >= rTop - DeltaDot And y <= rTop + DeltaDot Then
+				fTopRight = True
+				'Activity.Title = "TopRight"
+			Else If x >= rRight - DeltaDot And x <= rRight + DeltaDot And y >= rBottom - DeltaDot And y <= rBottom + DeltaDot Then
+				fBottomRight = True
+				'Activity.Title = "BottomRight"
+			Else If x >= rLeft + DeltaDot And x < rRight - DeltaDot And y >= rTop + DeltaDot And y < rBottom - DeltaDot Then
+				fCenter = True
+				'Activity.Title = "Center"
+			End If
+			StartX = x
+			StartY = y
+		Case pnlAction.ACTION_MOVE
+			Dim Diff As Int
+			DeltaX = x - StartX
+			DeltaY = y - StartY
+			cvsAction.DrawRect(rectOuter, Colors.Transparent, True , 1)
+			cvsAction.DrawRect(rectOuter, Colors.ARGB(128, 0, 0, 0), True , 1)
+			pnlAction.Invalidate2(rectOuter)
+			If fCenter = True Then
+				rectImage.Left = rLeft + DeltaX
+				rectImage.Right = rRight + DeltaX
+				rectImage.Top = rTop + DeltaY
+				rectImage.Bottom = rBottom + DeltaY
+				If rectImage.Left < imvImage.Left Then
+					Diff = imvImage.Left - rectImage.Left
+					rectImage.Left = imvImage.Left
+					rectImage.Right = rectImage.Right + Diff
+				End If
+				If rectImage.Top < imvImage.Top Then
+					Diff = imvImage.Top - rectImage.Top
+					rectImage.Top = imvImage.Top
+					rectImage.Bottom  = rectImage.Bottom + Diff
+				End If
+				If rectImage.Right >  imvImage.Left + imvImage.Width Then
+					Diff = rectImage.Right - (imvImage.Left + imvImage.Width)
+					rectImage.Right = imvImage.Left + imvImage.Width
+					rectImage.Left  = rectImage.Left - Diff
+				End If
+				If rectImage.Bottom > imvImage.Top + imvImage.Height Then
+					Diff = rectImage.Bottom - (imvImage.Top + imvImage.Height)
+					rectImage.Bottom = imvImage.Top + imvImage.Height
+					rectImage.Top  = rectImage.Top - Diff
+				End If
+			Else
+				If fTopLeft = True Or fBottomLeft = True Then
+					If rLeft + DeltaX > imvImage.Left Then
+						x1 = rLeft + DeltaX
+						If rectImage.Right - x1 >= WidthMin Then
+							rectImage.Left = x1
+						Else
+							rectImage.Left = rectImage.Right - WidthMin
+						End If
+					End If
+				End If
+				
+				If fTopLeft = True Or fTopRight = True Then
+					If rTop + DeltaY > imvImage.Top Then
+						y1 = rTop + DeltaY
+						If rectImage.Bottom - y1 >= HeightMin Then
+							rectImage.Top = y1
+						Else
+							rectImage.Top = rectImage.Bottom - HeightMin
+						End If
+					End If
+				End If
+				
+				If fTopRight = True Or fBottomRight = True Then
+					If rRight + DeltaX < imvImage.Left + imvImage.Width Then
+						x1 = rRight + DeltaX
+						If x1 - rectImage.Left >= WidthMin Then
+							rectImage.Right = x1
+						Else
+							rectImage.Right = rectImage.Left + WidthMin
+						End If
+					End If
+				End If
+				
+				If fBottomLeft = True Or fBottomRight = True Then
+					If rBottom + DeltaY < imvImage.Top + imvImage.Height Then
+						y1 = rBottom + DeltaY
+						If y1 - rectImage.Top > WidthMin Then
+							rectImage.Bottom = y1
+						Else
+							rectImage.Bottom = rectImage.Top + WidthMin
+						End If
+					End If
+				End If
+			End If
+		
+			cvsAction.DrawRect(rectImage, Colors.Transparent, True , 1)
+			pnlAction.Invalidate2(rectImage)
+			DrawMarkers
+			GetCropedImage
+			rectOuter.Initialize(rectImage.Left - MarkerDot_1, rectImage.Top - MarkerDot_1, rectImage.Right + MarkerDot_1, rectImage.Bottom + MarkerDot_1)
+		Case pnlAction.ACTION_UP
+			rLeft = rectImage.Left
+			rTop = rectImage.Top
+			rRight = rectImage.Right
+			rBottom = rectImage.Bottom
+			Activity.Title = ""
+	End Select
+End Sub
+
+Private Sub GetCropedImage
+	Private rectSource, rectDest As Rect
+	Private cLeft, cTop As Int
+	
+	If rectImage.Width / rectImage.Height > 1 Then
+		imvCroped.Width = imvCropedWidth
+		imvCroped.Height = imvCroped.Width / rectImage.Width * rectImage.Height
+	Else
+		imvCroped.Height = imvCropedWidth
+		imvCroped.Width = imvCroped.Height / rectImage.Height * rectImage.Width
+	End If
+	imvCroped.Gravity = Gravity.FILL
+	imvCroped.Gravity = Gravity.FILL
+	Private cvsCroped As Canvas
+	cvsCroped.Initialize(imvCroped)
+	rectDest.Initialize(0, 0, rectImage.Width * PixelScale, rectImage.Height * PixelScale)
+	cLeft = (rectImage.Left - imvImage.Left) * PixelScale
+	cTop = (rectImage.Top - imvImage.Top) * PixelScale
+	rectSource.Initialize(cLeft, cTop, cLeft + rectImage.Width * PixelScale, cTop + rectImage.Height * PixelScale)
+
+	bmpCroped.InitializeMutable(rectImage.Width * PixelScale, rectImage.Height * PixelScale)
+	cvsCroped.Initialize2(bmpCroped)
+
+	cvsCroped.DrawBitmap(bmpImage, rectSource, rectDest)
+	imvCroped.Bitmap = bmpCroped
+End Sub
+
+Private Sub DrawMarkers
+	Private r As Rect
+	
+	r.Initialize(rectImage.Left - MarkerDot, rectImage.Top - MarkerDot, rectImage.Left + MarkerDot, rectImage.Top + MarkerDot)
+	cvsAction.DrawRect(r, colMarker, True , 1)
+	pnlAction.Invalidate2(r)
+	
+	r.Initialize(rectImage.Right - MarkerDot, rectImage.Top - MarkerDot, rectImage.Right + MarkerDot, rectImage.Top + MarkerDot)
+	cvsAction.DrawRect(r, colMarker, True , 1)
+	pnlAction.Invalidate2(r)
+	
+	r.Initialize(rectImage.Left - MarkerDot, rectImage.Bottom - MarkerDot, rectImage.Left + MarkerDot, rectImage.Bottom + MarkerDot)
+	cvsAction.DrawRect(r, colMarker, True , 1)
+	pnlAction.Invalidate2(r)
+	
+	r.Initialize(rectImage.Right - MarkerDot, rectImage.Bottom - MarkerDot, rectImage.Right + MarkerDot, rectImage.Bottom + MarkerDot)
+	cvsAction.DrawRect(r, colMarker, True , 1)
+	pnlAction.Invalidate2(r)
+	
+End Sub
